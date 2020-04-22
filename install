@@ -34,7 +34,7 @@ exit 1
 fi
 
 {
-curl -LJO https://raw.githubusercontent.com/cimitrasoftware/nix-api-import/master/server
+curl -LJO https://raw.githubusercontent.com/cimitrasoftware/nix-api-server/master/server
 } 1> /dev/null 2>/dev/null
 chmod +x ./server
 
