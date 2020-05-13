@@ -38,6 +38,11 @@ curl -LJO https://raw.githubusercontent.com/cimitrasoftware/nix-api-server/maste
 } 1> /dev/null 2>/dev/null
 chmod +x ./server
 
+{
+curl -LJO https://raw.githubusercontent.com/cimitrasoftware/nix-api-server/master/create
+} 1> /dev/null 2>/dev/null
+chmod +x ./create
+
 echo ""
 echo "Success: Installing ${SOFTWARE_TITLE}"
 
