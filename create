@@ -1,0 +1,1603 @@
+#!/bin/bash
+###########################################
+# create                                  #
+# Author: Tay Kratzer - tay@cimitra.com   #
+# Version: 1.0                            #
+# Modify date: 5/11/2020                   #
+###########################################
+# Cimitra Command/Script Create Tool
+
+TEMP_FILE_DIRECTORY="/var/tmp"
+
+declare -i OS_IS_MAC=`echo "${OSTYPE}" | grep -ic "darwin"`
+
+declare CIMITRA_API_SESSION_TOKEN=""
+declare CIMITRA_SERVER_ADMIN_ACCOUNT="admin@cimitra.com"
+declare CIMITRA_SERVER_ADMIN_PASSWORD="changeme"
+declare -i CIMITRA_SERVER_ADMIN_PASSWORD_SET=0
+declare -i CIMITRA_SERVER_ADMIN_ACCOUNT_SET=0
+declare -i CIMITRA_APP_NAME_IN_SET=0
+declare -i CIMITRA_APP_COMMAND_IN_SET=0
+declare -i CIMITRA_APP_DESCRIPTION_IN_SET=0
+declare -i SHOW_HELP_SCREEN=0
+declare -i RUN_CONNECTION_TEST=0
+declare CURL_OUTPUT_MODE="--silent"
+declare -i SILENT_MODE=0
+declare CIMITRA_SERVER_ADDRESS=""
+declare -i CIMITRA_SERVER_ADDRESS_SET=0
+declare CIMITRA_SERVER_PORT="443"
+declare -i CIMITRA_SERVER_PORT_SET=0
+declare CIMITRA_PAIRED_AGENT_ID=""
+declare CIMITRA_PAIRED_AGENT_PLATFORM="linux"
+declare CIMITRA_ADMIN_CHECK="roles:255"
+CIMITRA_AGENT_BIN_FILE=""
+declare -i VERBOSE_MODE=0
+declare -i FUNCTION_IN_SET=0
+declare FUNCTION_IN=""
+declare COMMAND_LINE_IN=""
+declare -i FUNCTION_HELP_SET=0
+declare -i SWITCH_USED=0
+declare -i SETTINGS_EXIST=0
+declare -i INCLUDE_CRON=0
+
+
+declare CIMITRA_IMPORT_ROOT_FOLDER_ID=""
+declare CIMITRA_ROOT_FOLDER_ID=""
+declare CIMITRA_IMPORT_HOSTNAME_ROOT_FOLDER_ID=""
+
+declare -i INCLUDE_REGEX_EXAMPLE_SWITCHES=0
+
+
+while getopts "a:b:e:f:n:u:p:c:i:hrtv" opt; do
+  case ${opt} in
+    a) CIMITRA_SERVER_ADDRESS="$OPTARG"
+	CIMITRA_SERVER_ADDRESS_SET=1
+	SWITCH_USED=1
+      ;;
+	b)BLAH=1
+	;;
+    p) CIMITRA_SERVER_PORT="$OPTARG"
+	CIMITRA_SERVER_PORT_SET=1
+	SWITCH_USED=1
+      ;;
+    c) CIMITRA_SERVER_ADMIN_PASSWORD="$OPTARG"
+	CIMITRA_SERVER_ADMIN_PASSWORD_SET=1
+	SWITCH_USED=1
+      ;;
+    u) CIMITRA_SERVER_ADMIN_ACCOUNT="$OPTARG"
+	CIMITRA_SERVER_ADMIN_ACCOUNT_SET=1
+	SWITCH_USED=1
+      ;;
+    n) CIMITRA_APP_NAME_IN="$OPTARG"
+	CIMITRA_APP_NAME_IN_SET=1
+	SWITCH_USED=1
+      ;;
+    e) CIMITRA_APP_COMMAND_IN="$OPTARG"
+	CIMITRA_APP_COMMAND_IN_SET=1
+	SWITCH_USED=1
+	;;
+    f) FUNCTION_IN="$OPTARG"
+	FUNCTION_IN_SET=1
+	SWITCH_USED=1
+	;;
+    i) CIMITRA_APP_INTERPRETER_IN="$OPTARG"
+	CIMITRA_APP_INTERPRETER_IN_SET=1
+	SWITCH_USED=1
+	;;
+    h) SHOW_HELP_SCREEN=1
+      ;;
+    r) INCLUDE_REGEX_EXAMPLE_SWITCHES=1
+      ;;
+    s) SILENT_MODE=1
+      ;;
+    t) RUN_CONNECTION_TEST=1
+      ;;
+    v) CURL_OUTPUT_MODE=""
+	VERBOSE_MODE=1
+      ;;
+  esac
+done
+
+function CALL_EXIT()
+{
+EXIT_CODE="$1"
+exit $EXIT_CODE
+}
+
+if [ $FUNCTION_IN_SET -eq 0 ]
+then
+FUNCTION_IN_SET=`echo $@ | grep -c "function="`
+fi
+
+if [ $FUNCTION_IN_SET -gt 0 ]
+then
+FUNCTION_HELP_SET=`echo $@ | grep -ic "-help"`
+FUNCTION_IN=`echo $@ | awk -F "function=" '{printf $2}' | awk '{printf $1}'`
+COMMAND_LINE_IN=`echo $@`
+fi
+
+
+
+if [ $SWITCH_USED -eq 0 ]
+then
+CIMITRA_SERVER_ADDRESS="$1"
+
+	CIMITRA_SERVER_PORT_IN="$2"
+
+	if [ -z "${CIMITRA_SERVER_PORT_IN}" ]
+	then
+	:
+	else
+	CIMITRA_SERVER_PORT="$2"
+	fi
+
+	CIMITRA_SERVER_ADMIN_ACCOUNT_IN="$3"
+
+	if [ -z "${CIMITRA_SERVER_ADMIN_ACCOUNT_IN}" ]
+	then
+	:
+	else
+	CIMITRA_SERVER_ADMIN_ACCOUNT="$3"
+	fi
+
+	CIMITRA_SERVER_ADMIN_PASSWORD_IN="$4"
+
+	if [ -z "${CIMITRA_SERVER_ADMIN_PASSWORD_IN}" ]
+	then
+	:
+	else
+	CIMITRA_SERVER_ADMIN_PASSWORD="$4"
+	fi
+
+fi
+
+
+INPUT_ONE="$5"
+INPUT_TWO="$6"
+INPUT_THREE="$7"
+INPUT_FOUR="$8"
+INPUT_FIVE="$9"
+
+
+SCRIPT_PATH="$( cd "$(dirname "$0")" ; pwd -P )"
+
+SCRIPT_NAME="$0"
+
+SCRIPT_INIT="${SCRIPT_NAME} <cimitra server address> <cimitra server port> <cimitra admin user> <cimitra admin password>"
+
+SCRIPT_INIT_EXAMPLE="${SCRIPT_NAME} 192.168.1.16 443 admin@cimitra.com changeme"
+
+### Help Screen ###
+function SHOW_HELP()
+{
+echo "--- Script Help ---"
+echo ""
+echo "Cimitra Command/Script Import Tool"
+echo ""
+echo "Script usage:      $0 [options]"
+echo ""
+echo "Verbose Mode:      $0 -v ..."
+echo ""
+echo "Help:              $0 -h"
+echo ""
+echo "Function Help"
+echo ""
+echo "function=functionName -help"
+echo ""
+echo "Example: ${SCRIPT_NAME} function=getFolder -help"
+echo ""
+echo "--- Available Functions ---"
+echo ""
+echo "getFolder"
+echo ""
+echo "createFolder"
+echo ""
+}
+
+function CONFIRM_CORRECT_INPUT()
+{
+
+declare -i ALL_SET=0
+
+let ALL_SET=CIMITRA_SERVER_ADMIN_PASSWORD_SET+CIMITRA_SERVER_ADMIN_ACCOUNT_SET+CIMITRA_APP_COMMAND_IN_SET
+
+if [ $ALL_SET -ne 3 ]
+then
+SHOW_HELP
+echo ""
+echo "NOTE: Insufficient Input To Run Script"
+echo ""
+exit 1
+fi
+
+}
+
+function GET_URL()
+{
+IO_FILE="$1"
+
+# Read values from IO File
+
+source ${IO_FILE}
+
+BASEURL="https://${CIMITRA_SERVER_ADDRESS}:${CIMITRA_SERVER_PORT}/api"
+
+URL="${BASEURL}${ENDPOINT}" 
+
+declare RESPONSE=`curl -k ${CURL_OUTPUT_MODE} -H 'Accept: application/json' \
+-H "Authorization: Bearer ${CIMITRA_API_SESSION_TOKEN}" \
+-X GET ${URL}`
+
+echo "$RESPONSE" | sed -e 's/[}"]*\(.\)[{"]*/\1/g;y/,/\n/' 1> ${IO_FILE}
+
+return 0
+}
+
+function POST_URL()
+{
+IO_FILE="$1"
+
+# Read values from IO File
+
+source ${IO_FILE}
+
+BASEURL="https://${CIMITRA_SERVER_ADDRESS}:${CIMITRA_SERVER_PORT}/api"
+
+URL="${BASEURL}${ENDPOINT}" 
+
+{
+declare RESPONSE=`curl -k ${CURL_OUTPUT_MODE} -H 'Accept: application/json' \
+-H "Authorization: Bearer ${CIMITRA_API_SESSION_TOKEN}" \
+-X POST ${URL} -d @${JSON_INPUT_FILE} \
+-H "Content-Type: application/json"`
+} 1> /dev/null 2> /dev/null
+
+echo "$RESPONSE" | sed -e 's/[}"]*\(.\)[{"]*/\1/g;y/,/\n/' 1> ${IO_FILE}
+
+rm ${JSON_INPUT_FILE} 2> /dev/null
+
+return 0
+}
+
+
+function CREATE_CIMITRA_FOLDER_ENTITY()
+{
+IO_FILE=$1
+NAME=$2
+DESCRIPTION=$3
+PARENT_FOLDER_ID=$4
+# Define JSON temp file
+JSON_TEMP_FILE_ONE="${TEMP_FILE_DIRECTORY}/$$.1.tmp.json"
+
+echo "{
+    \"type\": 2,
+    \"name\": \"${NAME}\",
+    \"description\": \"${DESCRIPTION}\",
+    \"status\": \"active\",
+    \"parentFolderId\":  \"${PARENT_FOLDER_ID}\"
+}" 1> ${JSON_TEMP_FILE_ONE}
+
+
+# Define endpoint
+ENDPOINT="/apps" 
+
+# Add endoint and JSON temp file to I/O file
+echo "ENDPOINT=\"${ENDPOINT}\"" > ${TEMP_FILE_ONE}
+echo "JSON_INPUT_FILE=\"${JSON_TEMP_FILE_ONE}\"" >> ${TEMP_FILE_ONE}
+
+# Call POST_URL Function
+POST_URL "${IO_FILE}"
+return 0
+}
+
+
+function CREATE_OR_ESTABLISH_CIMITRA_IMPORT_FOLDER()
+{
+
+TEMP_FILE_ONE="${TEMP_FILE_DIRECTORY}/$$.1.tmp"
+HOSTNAME=`hostname | tr [a-z] [A-Z]`
+echo ""
+echo "Process: Discovering or Creating The Import Folder Structure"
+ENDPOINT="/apps/${CIMITRA_ROOT_FOLDER_ID}/children" 
+echo "ENDPOINT=\"${ENDPOINT}\"" > ${TEMP_FILE_ONE}
+GET_URL "${TEMP_FILE_ONE}"
+
+# Determine if the "IMPORT" Folder Exists
+declare -i IMPORT_FOLDER_EXISTS=`grep -ic "name:IMPORT" ${TEMP_FILE_ONE}`
+
+if [ $IMPORT_FOLDER_EXISTS -gt 0 ]
+then
+echo ""
+echo "Success: Discovered the Folder Structure | IMPORT"
+CIMITRA_IMPORT_ROOT_FOLDER_ID=`grep -iwB 1 "name:IMPORT" ${TEMP_FILE_ONE} | head -1 | awk -F : '{printf $2}'`
+fi
+
+# Make the IMPORT Folder
+if [ $IMPORT_FOLDER_EXISTS -eq 0 ]
+then
+CREATE_CIMITRA_FOLDER_ENTITY "${TEMP_FILE_ONE}" "IMPORT" "Cimitra Import API" "${CIMITRA_ROOT_FOLDER_ID}" 
+CIMITRA_IMPORT_ROOT_FOLDER_ID=`grep "_id:" ${TEMP_FILE_ONE} | head -1 | awk -F : '{printf $2}'`
+echo ""
+echo "Success: Created the Folder Structure | IMPORT"
+fi
+
+echo ""
+echo "Process: Discovering or Creating The Import | Hostname Folder Structure"
+ENDPOINT="/apps/${CIMITRA_IMPORT_ROOT_FOLDER_ID}/children" 
+echo "ENDPOINT=\"${ENDPOINT}\"" > ${TEMP_FILE_ONE}
+
+GET_URL "${TEMP_FILE_ONE}"
+
+# Determine if the "HOSTNAME" Folder Exists
+declare -i HOSTNAME_FOLDER_EXISTS=`grep -ic "name:${HOSTNAME}" ${TEMP_FILE_ONE}`
+
+if [ $HOSTNAME_FOLDER_EXISTS -gt 0 ]
+then
+echo ""
+echo "Success: Discovered the Folder Structure | ${HOSTNAME}"
+CIMITRA_IMPORT_HOSTNAME_ROOT_FOLDER_ID=`grep -iwB 1 "name:${HOSTNAME}" ${TEMP_FILE_ONE} | head -1 | awk -F : '{printf $2}'`
+fi
+
+# Make the HOSTNAME Folder
+if [ $HOSTNAME_FOLDER_EXISTS -eq 0 ]
+then
+CREATE_CIMITRA_FOLDER_ENTITY "${TEMP_FILE_ONE}" "${HOSTNAME}" "Cimitra Import API | Server: ${HOSTNAME} Imported Commands" "${CIMITRA_IMPORT_ROOT_FOLDER_ID}" 
+CIMITRA_IMPORT_HOSTNAME_ROOT_FOLDER_ID=`grep "_id:" ${TEMP_FILE_ONE} | head -1 | awk -F : '{printf $2}'`
+echo ""
+echo "Success: Created the Folder Structure | ${HOSTNAME}"
+fi
+
+rm ${TEMP_FILE_ONE} 2> /dev/null
+
+}
+
+
+function ESTABLISH_CIMITRA_API_SESSION()
+{
+
+TEMP_FILE_ONE="${TEMP_FILE_DIRECTORY}/$$.1.tmp"
+
+TEMP_FILE_TWO="${TEMP_FILE_DIRECTORY}/$$.2.tmp"
+
+BASEURL="https://${CIMITRA_SERVER_ADDRESS}:${CIMITRA_SERVER_PORT}/api" 
+
+ENDPOINT="/users/login" 
+
+URL="${BASEURL}${ENDPOINT}" 
+
+DATA="{\"email\":\"${CIMITRA_SERVER_ADMIN_ACCOUNT}\",\"password\": \"${CIMITRA_SERVER_ADMIN_PASSWORD}\"}" 
+
+
+{
+RESPONSE=`curl -k -f -H "Content-Type:application/json" -X POST ${URL} --data "$DATA"`
+} 2> /dev/null
+
+declare -i STATUS=`echo "${RESPONSE}" | grep -c ',\"homeFolderId\":\"'` 
+
+if [ ${STATUS} -eq 0 ] 
+then 
+echo "--------------------------------------------------"
+echo ""
+curl -k ${CURL_OUTPUT_MODE} -H "Content-Type:application/json" -X POST ${URL} --data "$DATA"
+echo ""
+echo "--------------------------------------------------"
+echo "" 
+echo "Error: Could Not Establish Connection to Cimitra Server" 
+echo ""
+exit 1 
+fi 
+
+CIMITRA_API_SESSION_TOKEN=`echo "${RESPONSE}" | awk -F \"token\":\" '{printf $2}' | awk -F \" '{printf $1}'`
+
+
+echo "$RESPONSE" 1> ${TEMP_FILE_ONE}
+
+
+sed -e 's/[}"]*\(.\)[{"]*/\1/g;y/,/\n/' < ${TEMP_FILE_ONE} > ${TEMP_FILE_TWO}
+
+declare -i ADMIN_USER=`cat ${TEMP_FILE_TWO} | grep -ic "${CIMITRA_ADMIN_CHECK}"`
+
+if [ $ADMIN_USER -eq 0 ]
+then
+echo "" 
+echo "Error: The User ${CIMITRA_SERVER_ADMIN_ACCOUNT} Does Not Have Admin Rights!" 
+echo ""
+exit 1 
+fi
+
+CIMITRA_ROOT_FOLDER_ID=`cat ${TEMP_FILE_TWO} | grep -i "homeFolderId:" | head -1 | awk -F ":" '{printf $2}'`
+
+rm ${TEMP_FILE_ONE} 2> /dev/null
+
+rm ${TEMP_FILE_TWO} 2> /dev/null
+
+}
+
+
+function CONFIRM_CIMITRA_SERVER_CONNECTIVITY()
+{
+
+# echo ""
+# echo "Process: Testing Connection to Cimitra Server"
+
+CIMITRA_AGENT_BIN_FILE_LINUX="/usr/bin/cimagent"
+CIMITRA_AGENT_BIN_FILE_MAC="/usr/local/bin/cimagent"
+declare CIMITRA_AGENT_BIN_FILE="${CIMITRA_AGENT_BIN_FILE_LINUX}"
+declare -i LINUX=`test -f ${CIMITRA_AGENT_BIN_FILE_LINUX} ; echo $?`
+declare -i MAC=`test -f ${CIMITRA_AGENT_BIN_FILE_MAC} ; echo $?`
+declare -i NODE="1"
+declare -i MAC_OR_LINUX=0
+
+
+if [ $LINUX -eq 0 ]
+then
+CIMITRA_AGENT_BIN_FILE="${CIMITRA_AGENT_BIN_FILE_LINUX}"
+MAC_OR_LINUX=1
+else
+
+	if [ $MAC -eq 0 ]
+	then
+	CIMITRA_AGENT_BIN_FILE="${CIMITRA_AGENT_BIN_FILE_MAC}"
+	MAC_OR_LINUX=1
+	else
+	NODE="0"
+ 	CIMITRA_AGENT_BIN_FILE=`ps -eaf | grep -v grep | grep 'cimagent.js s' | awk -F node '{printf $2}'`
+	fi
+
+fi
+
+declare -i CIMITRA_AGENT_BIN_FILE_EXISTS=`test -f ${CIMITRA_AGENT_BIN_FILE} ; echo $?`
+
+if [ $CIMITRA_AGENT_BIN_FILE_EXISTS -ne 0 ]
+then
+echo ""
+echo "Error: A Cimitra Agent is Not Installed"
+echo ""
+exit 1
+fi
+
+TEMP_FILE_ONE="${TEMP_FILE_DIRECTORY}/$$.1.tmp"
+
+TEMP_FILE_TWO="${TEMP_FILE_DIRECTORY}/$$.2.tmp"
+
+if [ $MAC_OR_LINUX -eq 1 ]
+then
+sudo ${CIMITRA_AGENT_BIN_FILE} 1> ${TEMP_FILE_ONE}
+else
+node ${CIMITRA_AGENT_BIN_FILE} 1> ${TEMP_FILE_ONE}
+fi
+
+CIMITRA_SERVER_ADDRESS=`cat ${TEMP_FILE_ONE} | grep -iA 1 "hostname" | tail -1 | awk -F "=" '{printf $2}' | sed 's/ //g'`
+
+CIMITRA_SERVER_PORT=`cat ${TEMP_FILE_ONE} | grep -iA 1 "hostport" | tail -1 | awk -F "=" '{printf $2}' | sed 's/ //g'`
+
+CIMITRA_PAIRED_AGENT_ID=`cat ${TEMP_FILE_ONE} | grep -iA 1 "agentid" | tail -1 | awk -F "=" '{printf $2}' | sed 's/ //g'`
+
+rm $TEMP_FILE_ONE
+
+{
+cat < /dev/tcp/${CIMITRA_SERVER_ADDRESS}:${CIMITRA_SERVER_PORT} &
+} 2> /dev/null
+
+CONNECTION_PROCESS=$!
+
+declare -i CONNECTION_PROCESS_WORKED=`ps -eaf | grep ${CONNECTION_PROCESS} | grep -c "cat"`
+
+if [ $CONNECTION_PROCESS_WORKED -ne 0 ]
+then
+echo ""
+echo "The Cimitra Server is Not Accessible"
+echo ""
+exit 1
+fi
+
+
+}
+
+function CIMITRA_APP_CREATE_TWO_INPUTS()
+{
+
+
+IO_FILE="$1"
+
+source ${IO_FILE}
+
+echo ""
+echo "Process: Creating Cimitra Application: ${NAME}"
+
+
+JSON_TEMP_FILE_ONE="${TEMP_FILE_DIRECTORY}/$$.1.tmp.json"
+
+BASEURL="https://${CIMITRA_SERVER_ADDRESS}:${CIMITRA_SERVER_PORT}/api" 
+
+ENDPOINT="/apps" 
+
+URL="${BASEURL}${ENDPOINT}"
+
+source ${IO_FILE}
+
+rm ${IO_FILE}
+
+if [ $INCLUDE_REGEX_EXAMPLE_SWITCHES -eq 1 ]
+then
+
+echo "{
+\"type\": 1,
+\"status\": \"active\",
+\"name\": \"${NAME}\",
+\"parentFolderId\":  \"${PARENT_FOLDER_ID}\",
+\"description\": \"\",
+\"platform\": \"${CIMITRA_PAIRED_AGENT_PLATFORM}\",
+\"agentId\": \"${CIMITRA_PAIRED_AGENT_ID}\",
+\"interpreter\": \"${APP_INTERPRETER}\",
+\"command\": \"${COMMAND}\",
+\"params\": \"\",
+\"notes\": \"\",
+\"injectParams\": [
+{
+\"param\": \"-a\",
+\"value\": \"INPUT_ONE\",
+\"label\": \"SWITCH_ONE\",
+\"placeholder\": \"\",
+\"private\": false,
+\"regex\": \"/^[A-Za-z-_0-9]+$/\"
+},
+{
+\"param\": \"-b\",
+\"value\": \"INPUT_TWO\",
+\"label\": \"SWITCH_TWO\",
+\"placeholder\": \"\",
+\"private\": false,
+\"regex\": \"/^[A-Za-z-_0-9+=^#@~ ]+$/\"
+}
+]
+}" 1> ${JSON_TEMP_FILE_ONE}
+
+else
+
+echo "{
+\"type\": 1,
+\"status\": \"active\",
+\"name\": \"${NAME}\",
+\"parentFolderId\":  \"${PARENT_FOLDER_ID}\",
+\"description\": \"\",
+\"platform\": \"${CIMITRA_PAIRED_AGENT_PLATFORM}\",
+\"agentId\": \"${CIMITRA_PAIRED_AGENT_ID}\",
+\"interpreter\": \"${APP_INTERPRETER}\",
+\"command\": \"${COMMAND}\",
+\"params\": \"\",
+\"notes\": \"\",
+\"injectParams\":[]
+}" 1> ${JSON_TEMP_FILE_ONE}
+
+
+fi
+
+{
+RESPONSE=`curl -k ${CURL_OUTPUT_MODE} -H 'Accept: application/json' \
+-H "Authorization: Bearer ${CIMITRA_API_SESSION_TOKEN}" \
+-X POST ${URL} -d @${JSON_TEMP_FILE_ONE} \
+-H "Content-Type: application/json"` 
+} 1> /dev/null 2> /dev/null
+
+
+if [ $VERBOSE_MODE -eq 1 ]
+then
+echo "${RESPONSE}"
+fi
+
+echo ""
+echo "Success: Created Cimitra Application: ${NAME}"
+
+rm ${JSON_TEMP_FILE_ONE} 2> /dev/null
+
+}
+
+function CIMITRA_APP_CREATE_NO_INPUTS()
+{
+
+IO_FILE="$1"
+
+source ${IO_FILE}
+
+echo ""
+echo "Process: Creating Cimitra Application: ${NAME}"
+
+JSON_TEMP_FILE_ONE="${TEMP_FILE_DIRECTORY}/$$.1.tmp.json"
+
+BASEURL="https://${CIMITRA_SERVER_ADDRESS}:${CIMITRA_SERVER_PORT}/api" 
+
+ENDPOINT="/apps" 
+
+URL="${BASEURL}${ENDPOINT}"
+
+source ${IO_FILE}
+
+rm ${IO_FILE}
+
+if [ $INCLUDE_CRON -eq 0 ]
+then
+
+echo "{
+\"type\": 1,
+\"status\": \"active\",
+\"name\": \"${NAME}\",
+\"parentFolderId\":  \"${PARENT_FOLDER_ID}\",
+\"description\": \"${DESCRIPTION}\",
+\"platform\": \"${CIMITRA_PAIRED_AGENT_PLATFORM}\",
+\"agentId\": \"${CIMITRA_PAIRED_AGENT_ID}\",
+\"interpreter\": \"${APP_INTERPRETER}\",
+\"command\": \"${COMMAND}\",
+\"params\": \"${PARAMS}\",
+\"notes\": \"${NOTES}\",
+\"injectParams\": [
+]
+}" 1> ${JSON_TEMP_FILE_ONE}
+
+else
+
+echo "{
+\"type\": 1,
+\"status\": \"active\",
+\"name\": \"${NAME}\",
+\"parentFolderId\":  \"${PARENT_FOLDER_ID}\",
+\"description\": \"${DESCRIPTION}\",
+\"platform\": \"${CIMITRA_PAIRED_AGENT_PLATFORM}\",
+\"agentId\": \"${CIMITRA_PAIRED_AGENT_ID}\",
+\"interpreter\": \"${APP_INTERPRETER}\",
+\"command\": \"${COMMAND}\",
+\"params\": \"${PARAMS}\",
+\"notes\": \"${NOTES}\",
+\"cron\": \"${CRON_SCHEDULE}\",
+\"cronEnabled\": true,
+\"injectParams\": [
+]
+}" 1> ${JSON_TEMP_FILE_ONE}
+
+
+fi
+# 0 22 * * *
+{
+RESPONSE=`curl -k ${CURL_OUTPUT_MODE} -H 'Accept: application/json' \
+-H "Authorization: Bearer ${CIMITRA_API_SESSION_TOKEN}" \
+-X POST ${URL} -d @${JSON_TEMP_FILE_ONE} \
+-H "Content-Type: application/json"` 
+} 1> /dev/null 2> /dev/null
+
+
+if [ $VERBOSE_MODE -eq 1 ]
+then
+echo "${RESPONSE}"
+fi
+
+echo ""
+echo "Success: Created Cimitra Application: ${NAME}"
+
+rm ${JSON_TEMP_FILE_ONE} 2> /dev/null
+
+}
+
+function CIMITRA_LINK_CREATE()
+{
+
+IO_FILE="$1"
+
+source ${IO_FILE}
+
+echo ""
+echo "Process: Creating Cimitra Link: ${NAME}"
+
+JSON_TEMP_FILE_ONE="${TEMP_FILE_DIRECTORY}/$$.1.tmp.json"
+
+BASEURL="https://${CIMITRA_SERVER_ADDRESS}:${CIMITRA_SERVER_PORT}/api" 
+
+ENDPOINT="/apps" 
+
+URL="${BASEURL}${ENDPOINT}"
+
+source ${IO_FILE}
+
+rm ${IO_FILE}
+
+
+echo "{
+\"type\": 3,
+\"name\": \"${NAME}\",
+\"description\": \"${DESCRIPTION}\",
+\"status\": \"active\",
+\"parentFolderId\":  \"${PARENT_FOLDER_ID}\",
+\"url\": \"${LINK_LOCATION}\"
+}" 1> ${JSON_TEMP_FILE_ONE}
+
+
+{
+RESPONSE=`curl -k ${CURL_OUTPUT_MODE} -H 'Accept: application/json' \
+-H "Authorization: Bearer ${CIMITRA_API_SESSION_TOKEN}" \
+-X POST ${URL} -d @${JSON_TEMP_FILE_ONE} \
+-H "Content-Type: application/json"` 
+} 1> /dev/null 2> /dev/null
+
+
+if [ $VERBOSE_MODE -eq 1 ]
+then
+echo "${RESPONSE}"
+fi
+
+echo ""
+echo "Success: Created Cimitra Link: ${NAME}"
+
+rm ${JSON_TEMP_FILE_ONE} 2> /dev/null
+
+}
+
+
+function CHECK_FOR_EXISTING_LINK()
+{
+PARENT_FOLDER_ID=$1
+LINK_NAME=$2
+
+TEMP_FILE_TWO="${TEMP_FILE_DIRECTORY}/$$.2.tmp"
+
+ENDPOINT="/apps/${PARENT_FOLDER_ID}/children" 
+
+echo "ENDPOINT=\"${ENDPOINT}\"" > ${TEMP_FILE_TWO}
+
+GET_URL "${TEMP_FILE_TWO}"
+
+# Determine if the link exists
+declare -i LINK_ALREADY_EXISTS=`grep -ic "${LINK_NAME}" ${TEMP_FILE_TWO}`
+rm ${TEMP_FILE_TWO} 2> /dev/null
+
+if [ $LINK_ALREADY_EXISTS -gt 0 ]
+then
+return 1
+else
+return 0
+fi
+}
+
+function CHECK_FOR_EXISTING_APP()
+{
+PARENT_FOLDER_ID=$1
+APP_SCRIPT=$2
+
+TEMP_FILE_TWO="${TEMP_FILE_DIRECTORY}/$$.2.tmp"
+
+ENDPOINT="/apps/${PARENT_FOLDER_ID}/children" 
+
+echo "ENDPOINT=\"${ENDPOINT}\"" > ${TEMP_FILE_TWO}
+
+GET_URL "${TEMP_FILE_TWO}"
+
+# Determine if the script exists
+declare -i SCRIPT_ALREADY_EXISTS=`grep -ic "${APP_SCRIPT}" ${TEMP_FILE_TWO}`
+rm ${TEMP_FILE_TWO} 2> /dev/null
+if [ $SCRIPT_ALREADY_EXISTS -gt 0 ]
+then
+return 1
+else
+return 0
+fi
+}
+
+function CREATE_CIMITRA_APP()
+{
+
+APP_NAME=`echo $@ | awk -F "appName='" '{printf $2}' | awk -F "'" '{printf $1}'`
+APP_INTERPRETER=`echo $@ | awk -F "appInterepreter='" '{printf $2}' | awk -F "'" '{printf $1}'`
+APP_COMMAND=`echo $@ | awk -F "appCommand='" '{printf $2}' | awk -F "'" '{printf $1}'`
+APP_SWITCHES=`echo $@ | awk -F "appSwitches='" '{printf $2}' | awk -F "'" '{printf $1}'`
+APP_CRON=`echo $@ | awk -F "appCron='" '{printf $2}' | awk -F "'" '{printf $1}'`
+APP_FOLDER_ID=`echo $@ | awk -F "appFolderId='" '{printf $2}' | awk -F "'" '{printf $1}'`
+APP_DESCRIPTION=`echo $@ | awk -F "appDescription='" '{printf $2}' | awk -F "'" '{printf $1}'`
+APP_NOTES=`echo $@ | awk -F "appNotes='" '{printf $2}' | awk -F "'" '{printf $1}'`
+
+declare -i APP_CRON_LENGTH=`echo "${APP_CRON}" | wc -m`
+
+APP_CRON=`echo "${APP_CRON}" | tr [a] [*]`
+
+
+APP_SCRIPT="${APP_COMMAND}"
+
+SCRIPT_EXISTS=`CHECK_FOR_EXISTING_APP "${APP_FOLDER_ID}" "${APP_SCRIPT}" ; echo $?`
+
+if [ $SCRIPT_EXISTS -eq 1 ]
+then
+return 1
+fi
+
+TEMP_FILE_ONE="${TEMP_FILE_DIRECTORY}/$$.1.tmp"
+
+
+if [ $VERBOSE_MODE -eq 1 ]
+then
+echo "App Name = $APP_NAME"
+fi
+
+echo "NAME=\"${APP_NAME}\"" > ${TEMP_FILE_ONE}
+echo "DESCRIPTION=\"${APP_DESCRIPTION}\"" >> ${TEMP_FILE_ONE}
+echo "NOTES=\"${APP_NOTES}\"" >> ${TEMP_FILE_ONE}
+echo "PLATFORM=\"${CIMITRA_PAIRED_AGENT_PLATFORM}\"" >> ${TEMP_FILE_ONE}
+echo "COMMAND=\"${APP_COMMAND}\"" >> ${TEMP_FILE_ONE}
+echo "PARAMS=\"${APP_SWITCHES}\"" >> ${TEMP_FILE_ONE}
+echo "PARENT_FOLDER_ID=\"${APP_FOLDER_ID}\"" >> ${TEMP_FILE_ONE}
+echo "APP_INTERPRETER=\"${APP_INTERPRETER}\"" >> ${TEMP_FILE_ONE}
+echo "CRON_SCHEDULE=\"${APP_CRON}\"" >> ${TEMP_FILE_ONE} 
+
+if [ $APP_CRON_LENGTH -gt 4 ]
+then
+echo "INCLUDE_CRON=\"1\"" >> ${TEMP_FILE_ONE}
+fi
+
+
+CIMITRA_APP_CREATE_NO_INPUTS ${TEMP_FILE_ONE}
+}
+
+
+function POST_URL()
+{
+IO_FILE="$1"
+
+# Read values from IO File
+
+source ${IO_FILE}
+
+BASEURL="https://${CIMITRA_SERVER_ADDRESS}:${CIMITRA_SERVER_PORT}/api"
+
+URL="${BASEURL}${ENDPOINT}" 
+
+{
+declare RESPONSE=`curl -k ${CURL_OUTPUT_MODE} -H 'Accept: application/json' \
+-H "Authorization: Bearer ${CIMITRA_API_SESSION_TOKEN}" \
+-X POST ${URL} -d @${JSON_INPUT_FILE} \
+-H "Content-Type: application/json"`
+} 1> /dev/null 2> /dev/null
+
+if [ $VERBOSE_MODE -eq 1 ]
+then
+cat $RESPONSE
+fi
+
+echo "$RESPONSE" | sed -e 's/[}"]*\(.\)[{"]*/\1/g;y/,/\n/' 1> ${IO_FILE}
+
+rm ${JSON_INPUT_FILE} 2> /dev/null
+
+return 0
+}
+
+function CREATE_CIMITRA_FOLDER_ENTITY()
+{
+IO_FILE=$1
+NAME=$2
+DESCRIPTION=$3
+PARENT_FOLDER_ID=$4
+# Define JSON temp file
+JSON_TEMP_FILE_ONE="${TEMP_FILE_DIRECTORY}/$$.1.tmp.json"
+
+echo "{
+    \"type\": 2,
+    \"name\": \"${NAME}\",
+    \"description\": \"${DESCRIPTION}\",
+    \"status\": \"active\",
+    \"parentFolderId\":  \"${PARENT_FOLDER_ID}\"
+}" 1> ${JSON_TEMP_FILE_ONE}
+
+
+# Define endpoint
+ENDPOINT="/apps" 
+
+# Add endoint and JSON temp file to I/O file
+echo "ENDPOINT=\"${ENDPOINT}\"" > ${TEMP_FILE_ONE}
+echo "JSON_INPUT_FILE=\"${JSON_TEMP_FILE_ONE}\"" >> ${TEMP_FILE_ONE}
+
+# Call POST_URL Function
+POST_URL "${IO_FILE}"
+return 0
+}
+
+
+function GET_URL()
+{
+IO_FILE="$1"
+
+# Read values from IO File
+
+source ${IO_FILE}
+
+BASEURL="https://${CIMITRA_SERVER_ADDRESS}:${CIMITRA_SERVER_PORT}/api"
+
+URL="${BASEURL}${ENDPOINT}" 
+
+declare RESPONSE=`curl -k ${CURL_OUTPUT_MODE} -H 'Accept: application/json' \
+-H "Authorization: Bearer ${CIMITRA_API_SESSION_TOKEN}" \
+-X GET ${URL}`
+
+echo "$RESPONSE" | sed -e 's/[}"]*\(.\)[{"]*/\1/g;y/,/\n/' 1> ${IO_FILE}
+
+return 0
+}
+
+function createFolder()
+{
+
+CALLING_FUNCTION="${FUNCNAME}"
+
+function showHelp()
+{
+echo "-----------------------------------------------------"
+echo ""
+echo "${SCRIPT_NAME} ${CALLING_FUNCTION} -help"
+echo ""
+echo "${SCRIPT_INIT} function=${CALLING_FUNCTION} name=<folder name>"
+echo ""
+echo "${SCRIPT_INIT_EXAMPLE} function=${CALLING_FUNCTION} name=MY_FOLDER"
+echo ""
+echo "Creates a Folder off of the Root Folder"
+echo ""
+echo "${SCRIPT_INIT} function=${CALLING_FUNCTION} id=<folder id>"
+echo ""
+echo "Creates a Folder off of the Folder ID Specified"
+echo ""
+}
+
+if [ $FUNCTION_HELP_SET -gt 0 ]
+then
+showHelp
+return 0
+fi
+
+FUNCTION_COMMAND_LINE_IN=`echo $@`
+
+ESTABLISH_CIMITRA_API_SESSION
+
+declare FOLDER_NAME_IN=""
+
+declare FOLDER_ID_IN=""
+
+declare -i FOLDER_NAME_IN_EXISTS=`echo "${COMMAND_LINE_IN}" | grep -c "name="`
+
+if [ $FOLDER_NAME_IN_EXISTS -eq 0 ]
+then
+declare -i FOLDER_NAME_IN_EXISTS=`echo "${FUNCTION_COMMAND_LINE_IN}" | grep -c "name="`
+
+	if [ $FOLDER_NAME_IN_EXISTS -eq 1 ]
+	then
+	FOLDER_NAME_IN=`echo "${FUNCTION_COMMAND_LINE_IN}" | awk -F "name=" '{printf $2}'`
+	fi
+
+else
+FOLDER_NAME_IN=`echo "${COMMAND_LINE_IN}" | awk -F "name=" '{printf $2}'`
+fi
+
+declare -i FOLDER_ID_SWITCH_EXISTS=`echo "${COMMAND_LINE_IN}" | grep -c "id="`
+
+
+declare -i FOLDER_ID_IN_EXISTS=`echo "${COMMAND_LINE_IN}" | grep -c "id="`
+
+if [ $FOLDER_ID_IN_EXISTS -eq 0 ]
+then
+declare -i FOLDER_ID_IN_EXISTS=`echo "${FUNCTION_COMMAND_LINE_IN}" | grep -c "id="`
+
+	if [ $FOLDER_ID_IN_EXISTS -eq 1 ]
+	then
+	FOLDER_ID_IN=`echo "${FUNCTION_COMMAND_LINE_IN}" | awk -F "id=" '{printf $2}'`
+	fi
+
+else
+FOLDER_ID_IN=`echo "${COMMAND_LINE_IN}" | awk -F "id=" '{printf $2}'`
+fi
+
+
+let SETTINGS_EXIST=FOLDER_NAME_IN_EXISTS+FOLDER_ID_IN_EXISTS
+
+if [ $SETTINGS_EXIST -eq 0 ]
+then
+showHelp
+return 1
+fi
+
+
+TEMP_FILE_ONE="${TEMP_FILE_DIRECTORY}/$$.1.tmp"
+
+
+
+if [ $FOLDER_NAME_IN_EXISTS -eq 0 ]
+then
+echo "Error: Specify the folder name with name= option"
+CALL_EXIT 1
+fi
+
+if [ $FOLDER_ID_SWITCH_EXISTS -eq 0 ]
+then
+CREATE_CIMITRA_FOLDER_ENTITY "${TEMP_FILE_ONE}" "${FOLDER_NAME_IN}" "${FOLDER_NAME_IN}" "${CIMITRA_ROOT_FOLDER_ID}" 
+else
+CREATE_CIMITRA_FOLDER_ENTITY "${TEMP_FILE_ONE}" "${FOLDER_NAME_IN}" "${FOLDER_NAME_IN}" "${FOLDER_ID_IN}" 
+fi
+
+rm $TEMP_FILE_ONE 2> /dev/null
+
+}
+
+
+function getFolder()
+{
+CALLING_FUNCTION="${FUNCNAME}"
+function showHelp()
+{
+echo "-----------------------------------------------------"
+echo ""
+echo "${CALLING_FUNCTION} -help"
+echo ""
+echo "${SCRIPT_INIT} function=${CALLING_FUNCTION} name=<folder name>"
+echo ""
+echo "${SCRIPT_INIT_EXAMPLE} function=${CALLING_FUNCTION} name=MY_FOLDER"
+echo ""
+echo "${SCRIPT_NAME} function=${CALLING_FUNCTION} id=<folder unique id>"
+echo ""
+echo ""
+echo "Reports Folder Information in a JSON Format parsed by lines"
+echo ""
+echo "-----------------------------------------------------"
+}
+
+if [ $FUNCTION_HELP_SET -gt 0 ]
+then
+showHelp
+return 0
+fi
+
+
+FUNCTION_COMMAND_LINE_IN=`echo $@`
+
+
+
+declare FOLDER_NAME_IN=""
+
+declare FOLDER_ID_IN=""
+
+declare -i FOLDER_NAME_IN_EXISTS=0
+
+FOLDER_NAME_IN_EXISTS=`echo "${COMMAND_LINE_IN}" | grep -c "name="`
+
+if [ $FOLDER_NAME_IN_EXISTS -eq 0 ]
+then
+declare -i FOLDER_NAME_IN_EXISTS=`echo "${FUNCTION_COMMAND_LINE_IN}" | grep -c "name="`
+
+	if [ $FOLDER_NAME_IN_EXISTS -eq 1 ]
+	then
+	FOLDER_NAME_IN=`echo "${FUNCTION_COMMAND_LINE_IN}" | awk -F "name=" '{printf $2}'`
+	fi
+
+else
+FOLDER_NAME_IN=`echo "${COMMAND_LINE_IN}" | awk -F "name=" '{printf $2}'`
+fi
+
+declare -i FOLDER_ID_SWITCH_EXISTS=`echo "${COMMAND_LINE_IN}" | grep -c "id="`
+
+
+declare -i FOLDER_ID_IN_EXISTS=`echo "${COMMAND_LINE_IN}" | grep -c "id="`
+
+if [ $FOLDER_ID_IN_EXISTS -eq 0 ]
+then
+declare -i FOLDER_ID_IN_EXISTS=`echo "${FUNCTION_COMMAND_LINE_IN}" | grep -c "id="`
+
+	if [ $FOLDER_ID_IN_EXISTS -eq 1 ]
+	then
+	FOLDER_ID_IN=`echo "${FUNCTION_COMMAND_LINE_IN}" | awk -F "id=" '{printf $2}'`
+	fi
+
+else
+FOLDER_ID_IN=`echo "${COMMAND_LINE_IN}" | awk -F "id=" '{printf $2}'`
+fi
+echo "FOLDER_NAME_IN_EXISTS = $FOLDER_NAME_IN_EXISTS"
+
+let SETTINGS_EXIST=FOLDER_NAME_IN_EXISTS+FOLDER_ID_IN_EXISTS
+
+if [ $SETTINGS_EXIST -eq 0 ]
+then
+showHelp
+return 1
+fi
+
+# BLISS
+
+ESTABLISH_CIMITRA_API_SESSION
+
+declare -i FOLDER_EXISTS=0
+
+declare SEARCH_FOR_STRING=""
+
+declare FOLDER_ID_IN=""
+
+if [ $FOLDER_NAME_IN_EXISTS -eq 1 ]
+then
+SEARCH_FOR_STRING="${FOLDER_NAME_IN}"
+ENDPOINT="/apps/${CIMITRA_ROOT_FOLDER_ID}/children"
+fi
+
+if [ $FOLDER_ID_IN_EXISTS -eq 1 ]
+then
+SEARCH_FOR_STRING="${FOLDER_NAME_IN}"
+ENDPOINT="/apps/${FOLDER_ID_IN}/children"
+fi
+
+TEMP_FILE_ONE="${TEMP_FILE_DIRECTORY}/$$.1.tmp"
+
+echo "ENDPOINT=\"${ENDPOINT}\"" > ${TEMP_FILE_ONE}
+
+GET_URL "${TEMP_FILE_ONE}"
+
+declare -i REPORT_NAME_AND_ID=1
+
+declare -i GET_CHILDREN_EXISTS=1
+
+declare -i GET_CHILDREN_ONLY_EXISTS=0
+
+FOLDER_EXISTS=`cat ${TEMP_FILE_ONE} | grep -c "${SEARCH_FOR_STRING}"`
+
+
+
+	if [ $FOLDER_EXISTS -gt 0 ]
+	then
+
+		if [ $FOLDER_NAME_IN_EXISTS -eq 1 ]
+		then
+		FOLDER_ID=`cat ${TEMP_FILE_ONE} | grep -1b "name:${SEARCH_FOR_STRING}" | head -1 | awk -F ":" '{printf $2}'`
+		else
+		FOLDER_ID="${FOLDER_ID_IN}"
+		fi
+		
+	ENDPOINT="/apps/${FOLDER_ID}"
+	echo "ENDPOINT=\"${ENDPOINT}\"" > ${TEMP_FILE_ONE}
+	GET_URL "${TEMP_FILE_ONE}"
+	cat ${TEMP_FILE_ONE}
+	CURRENT_OBJECT_NAME=`cat ${TEMP_FILE_ONE} | grep "name:" | awk -F ":" '{printf $2}'`
+	echo "CURRENT_OBJECT:TYPE:FOLDER:NAME:${CURRENT_OBJECT_NAME}:ID:${FOLDER_ID}"
+
+	ENDPOINT="/apps/${FOLDER_ID}/children"
+	echo "ENDPOINT=\"${ENDPOINT}\"" > ${TEMP_FILE_ONE}
+	GET_URL "${TEMP_FILE_ONE}"
+		if [ $GET_CHILDREN_ONLY_EXISTS -eq 0 ]
+		then
+		# Show Folder Object
+		cat ${TEMP_FILE_ONE}
+		
+		declare -i IN_FOLDER_OBJECT=0
+		declare -i IN_APP_OBJECT=0
+		declare -i IN_LINK_OBJECT=0
+		declare -i OBJECT_IDENTIFIED=0
+		declare -i ID_OBTAINED=0
+		declare -i NAME_OBTAINED=0
+		declare -i OBTAIN_NAME=0
+		declare -i OBTAIN_ID=0
+		declare CURRENT_OBJECT_TYPE=""
+		declare CURRENT_OBJECT_ID=""
+		declare CURRENT_OBJECT_NAME=""
+		declare -i READY_TO_REPORT_OBJECT=0
+		
+		while read LINE_ENTRY
+		do
+			if [ $REPORT_NAME_AND_ID -eq 1 ]
+			then
+			
+			if [ $OBJECT_IDENTIFIED -eq 0 ]
+			then
+			IN_FOLDER_OBJECT=`echo "${LINE_ENTRY}" | grep -c "itemtype:Folder"`
+			IN_APP_OBJECT=`echo "${LINE_ENTRY}" | grep -c "itemtype:App"`
+			IN_LINK_OBJECT=`echo "${LINE_ENTRY}" | grep -c "itemtype:Link"`
+			let OBJECT_IDENTIFIED=IN_FOLDER_OBJECT+IN_APP_OBJECT+IN_LINK_OBJECT
+				if [ $OBJECT_IDENTIFIED -eq 1 ]
+				then
+					OBTAIN_ID=1
+					CURRENT_OBJECT_TYPE=`echo "${LINE_ENTRY}" | awk -F : '{printf $2}'`
+				fi
+			fi
+								
+			if [ $OBTAIN_ID -eq 1 ]
+			then
+			ID_OBTAINED=`echo "${LINE_ENTRY}" | grep -c "_id:"`
+				if [ $ID_OBTAINED -gt 0 ]
+				then
+				CURRENT_OBJECT_ID=`echo "${LINE_ENTRY}" | awk -F : '{printf $2}'`
+				ID_OBTAINED=0
+				OBTAIN_ID=0
+				OBTAIN_NAME=1
+				fi
+			fi
+								
+			if [ $OBTAIN_NAME -eq 1 ]
+			then
+			NAME_OBTAINED=`echo "${LINE_ENTRY}" | grep -c "name:"`
+				if [ $NAME_OBTAINED -gt 0 ]
+				then
+				OBTAIN_NAME=0
+				CURRENT_OBJECT_NAME=`echo "${LINE_ENTRY}" | awk -F : '{printf $2}'`
+				READY_TO_REPORT_OBJECT=1
+				fi
+
+			fi
+								
+				if [ $READY_TO_REPORT_OBJECT -eq 1 ]
+				then
+				READY_TO_REPORT_OBJECT=0
+				OBJECT_TYPE_UPPER=`echo ${CURRENT_OBJECT_TYPE} | tr [a-z] [A-Z]`
+				echo "CHILD_OBJECT:TYPE:${OBJECT_TYPE_UPPER}:NAME:${CURRENT_OBJECT_NAME}:ID:${CURRENT_OBJECT_ID}"
+				CURRENT_OBJECT_TYPE=""
+				CURRENT_OBJECT_NAME=""
+				CURRENT_OBJECT_ID=""
+				IN_FOLDER_OBJECT=0
+				IN_APP_OBJECT=0
+				IN_LINK_OBJECT=0
+				OBJECT_IDENTIFIED=0
+				fi
+			
+			fi
+		done < ${TEMP_FILE_ONE}
+			
+		fi
+
+
+		if [ $GET_CHILDREN_EXISTS -eq 1 ]
+		then
+		# Get Folder Contents
+		FOUND_FOLDER_ID=`cat ${TEMP_FILE_ONE} | grep -B 1 "name:${FOLDER_NAME_IN}" | head -1 | awk -F "id:" '{printf $2}'`
+		
+		ENDPOINT="/apps/${FOUND_FOLDER_ID}/children"
+		echo "ENDPOINT=\"${ENDPOINT}\"" > ${TEMP_FILE_ONE}
+		GET_URL "${TEMP_FILE_ONE}"
+		# Show Folder Contents
+		
+		declare -i CHILDREN_COUNT=`cat ${TEMP_FILE_ONE} | wc -l`
+		
+			if [ $CHILDREN_COUNT -eq 1 ]
+			then
+			# No children exist
+				rm ${TEMP_FILE_ONE} 2> /dev/null
+				return 0
+			else
+			cat ${TEMP_FILE_ONE}
+						# Extract Key Object Data
+						if [ $REPORT_NAME_AND_ID -eq 1 ]
+						then
+						declare -i IN_FOLDER_OBJECT=0
+						declare -i IN_APP_OBJECT=0
+						declare -i IN_LINK_OBJECT=0
+						declare -i OBJECT_IDENTIFIED=0
+						declare -i ID_OBTAINED=0
+						declare -i NAME_OBTAINED=0
+						declare -i OBTAIN_NAME=0
+						declare -i OBTAIN_ID=0
+						declare CURRENT_OBJECT_TYPE=""
+						declare CURRENT_OBJECT_ID=""
+						declare CURRENT_OBJECT_NAME=""
+						declare -i READY_TO_REPORT_OBJECT=0
+							while read LINE_ENTRY
+							do
+								if [ $OBJECT_IDENTIFIED -eq 0 ]
+								then
+								IN_FOLDER_OBJECT=`echo "${LINE_ENTRY}" | grep -c "itemtype:Folder"`
+								IN_APP_OBJECT=`echo "${LINE_ENTRY}" | grep -c "itemtype:App"`
+								IN_LINK_OBJECT=`echo "${LINE_ENTRY}" | grep -c "itemtype:Link"`
+								let OBJECT_IDENTIFIED=IN_FOLDER_OBJECT+IN_APP_OBJECT+IN_LINK_OBJECT
+									if [ $OBJECT_IDENTIFIED -eq 1 ]
+									then
+										OBTAIN_ID=1
+										CURRENT_OBJECT_TYPE=`echo "${LINE_ENTRY}" | awk -F : '{printf $2}'`
+									fi
+								fi
+								
+								if [ $OBTAIN_ID -eq 1 ]
+								then
+								ID_OBTAINED=`echo "${LINE_ENTRY}" | grep -c "_id:"`
+									if [ $ID_OBTAINED -gt 0 ]
+									then
+									CURRENT_OBJECT_ID=`echo "${LINE_ENTRY}" | awk -F : '{printf $2}'`
+									ID_OBTAINED=0
+									OBTAIN_ID=0
+									OBTAIN_NAME=1
+									fi
+								fi
+								
+								if [ $OBTAIN_NAME -eq 1 ]
+								then
+								NAME_OBTAINED=`echo "${LINE_ENTRY}" | grep -c "name:"`
+									if [ $NAME_OBTAINED -gt 0 ]
+									then
+									OBTAIN_NAME=0
+									CURRENT_OBJECT_NAME=`echo "${LINE_ENTRY}" | awk -F : '{printf $2}'`
+									READY_TO_REPORT_OBJECT=1
+									fi
+
+								fi
+								
+								if [ $READY_TO_REPORT_OBJECT -eq 1 ]
+								then
+								READY_TO_REPORT_OBJECT=0
+								OBJECT_TYPE_UPPER=`echo ${CURRENT_OBJECT_TYPE} | tr [a-z] [A-Z]`
+								echo "CHILD_OBJECT:TYPE:${OBJECT_TYPE_UPPER}:NAME:${CURRENT_OBJECT_NAME}:ID:${CURRENT_OBJECT_ID}"
+								CURRENT_OBJECT_TYPE=""
+								CURRENT_OBJECT_NAME=""
+								CURRENT_OBJECT_ID=""
+								IN_FOLDER_OBJECT=0
+								IN_APP_OBJECT=0
+								IN_LINK_OBJECT=0
+								OBJECT_IDENTIFIED=0
+								fi
+
+							done < ${TEMP_FILE_ONE}
+			
+			
+						fi
+			rm  ${TEMP_FILE_ONE} 2> /dev/null
+			fi
+		fi
+
+	return 0
+	else
+	# Folder not found
+	rm ${TEMP_FILE_ONE} 2> /dev/null
+	return 1
+	fi
+
+
+}
+
+function createApp()
+{
+
+CALLING_FUNCTION="${FUNCNAME}"
+function showHelp()
+{
+echo "-----------------------------------------------------"
+echo ""
+echo "${CALLING_FUNCTION} -help"
+echo ""
+echo "${SCRIPT_INIT} function=${CALLING_FUNCTION} folderId=<folder ID> command=<command to run> name=<app name> "
+echo ""
+echo "${SCRIPT_INIT_EXAMPLE} function=${CALLING_FUNCTION} folderId=5eac8715bcbf9c00310d143f command=df -h name=DISK USAGE"
+echo ""
+echo "Additional Parameters"
+echo ""
+echo "interpreter="
+echo ""
+echo "Example"
+echo ""
+echo "interpreter=/bin/bash"
+echo ""
+echo "switches="
+echo ""
+echo "Example"
+echo ""
+echo "switches=--si"
+echo ""
+echo "cron="
+echo ""
+echo "Example"
+echo ""
+echo "cron=*/30 * * * *"
+echo ""
+echo "Creates a Cimitra App"
+echo "-----------------------------------------------------"
+}
+
+if [ $FUNCTION_HELP_SET -gt 0 ]
+then
+showHelp
+return 0
+fi
+
+
+CONFIRM_CIMITRA_SERVER_CONNECTIVITY
+
+ESTABLISH_CIMITRA_API_SESSION
+
+declare -i FOLDER_ID_SWITCH_EXISTS=`echo "${COMMAND_LINE_IN}" | grep -c "appFolderId="`
+
+declare -i APP_NAME_EXISTS=`echo "${COMMAND_LINE_IN}" | grep -c "appName="`
+
+declare -i APP_INTERPRETER_EXISTS=`echo "${COMMAND_LINE_IN}" | grep -c "appInterpreter="`
+
+declare -i APP_COMMAND_EXISTS=`echo "${COMMAND_LINE_IN}" | grep -c "appCommand="`
+
+declare -i APP_SWITCHES_EXISTS=`echo "${COMMAND_LINE_IN}" | grep -c "appSwitches="`
+
+declare -i APP_CRON_EXISTS=`echo "${COMMAND_LINE_IN}" | grep -c "appCron="`
+
+let SETTINGS_EXIST=FOLDER_ID_SWITCH_EXISTS+APP_NAME_EXISTS+APP_COMMAND_EXISTS
+
+if [ $SETTINGS_EXIST -lt 3 ]
+then
+showHelp
+return 1
+fi
+
+
+APP_NAME=`echo "${COMMAND_LINE_IN}" | awk -F "appName=" '{printf $2}' | awk '{printf $1}'`
+APP_INTERPRETER=`echo "${COMMAND_LINE_IN}" | awk -F "appInterepreter='" '{printf $2}' | awk -F "'" '{printf $1}'`
+APP_COMMAND=`echo "${COMMAND_LINE_IN}"| awk -F "appCommand='" '{printf $2}' | awk -F "'" '{printf $1}'`
+APP_SWITCHES=`echo "${COMMAND_LINE_IN}" | awk -F "appSwitches='" '{printf $2}' | awk -F "'" '{printf $1}'`
+APP_CRON=`echo "${COMMAND_LINE_IN}" | awk -F "appCron='" '{printf $2}' | awk -F "'" '{printf $1}'`
+APP_FOLDER_ID=`echo "${COMMAND_LINE_IN}" | awk -F "appFolderId='" '{printf $2}' | awk -F "'" '{printf $1}'`
+APP_DESCRIPTION=`echo "${COMMAND_LINE_IN}" | awk -F "appDescription='" '{printf $2}' | awk -F "'" '{printf $1}'`
+APP_NOTES=`echo "${COMMAND_LINE_IN}" | awk -F "appNotes='" '{printf $2}' | awk -F "'" '{printf $1}'`
+
+
+declare -i APP_FOLDER_ID_LENGTH=`echo "${APP_FOLDER_ID}" | wc -m`
+
+if [ $APP_FOLDER_ID_LENGTH -lt 10 ]
+then
+APP_FOLDER_ID="${CIMITRA_ROOT_FOLDER_ID}"
+fi
+
+CREATE_CIMITRA_APP "appName='${APP_NAME}' appInterepreter='${APP_INTERPRETER}' appCommand='${APP_COMMAND}' appSwitches='${APP_SWITCHES}' appCron='${APP_CRON}' appFolderId='${APP_FOLDER_ID}' appDescription='${APP_DESCRIPTION}' appNotes='${APP_NOTES}'"
+
+}
+
+function CREATE_CIMITRA_SYSTEM_FOLDER()
+{
+
+CONFIRM_CIMITRA_SERVER_CONNECTIVITY
+
+ESTABLISH_CIMITRA_API_SESSION
+
+getFolder "name=CIMITRA SYSTEM APPS" 1> /dev/null 2> /dev/null
+
+declare -i CIMITRA_SYSTEM_APPS_FOLDER_EXISTS=`echo $?`
+
+if [ $CIMITRA_SYSTEM_APPS_FOLDER_EXISTS -eq 1 ]
+then
+createFolder "name=CIMITRA SYSTEM APPS"
+fi
+
+}
+
+function CREATE_CIMITRA_SERVER_BACKUP_APP()
+{
+
+CONFIRM_CIMITRA_SERVER_CONNECTIVITY
+
+ESTABLISH_CIMITRA_API_SESSION
+
+getFolder "name=CIMITRA SYSTEM APPS" 1> /dev/null 2> /dev/null
+
+declare -i CIMITRA_SYSTEM_APPS_FOLDER_EXISTS=`echo $?`
+
+
+if [ $CIMITRA_SYSTEM_APPS_FOLDER_EXISTS -eq 0 ]
+then
+
+CIMITRA_SYSTEM_APPS_FOLDER_ID=""
+
+CIMITRA_SYSTEM_APPS_FOLDER_ID=`getFolder "name=CIMITRA SYSTEM APPS" | grep :ID: | head -1 | awk -F ":ID:" '{printf $2}'`
+
+CREATE_CIMITRA_APP "appName='CIMITRA SYSTEM BACKUP' appInterepreter='/bin/bash' appCommand='cimitra server backup' appSwitches='max_disk_threshold=90 max_backups=14' appCron='0 22 a a a' appFolderId='${CIMITRA_SYSTEM_APPS_FOLDER_ID}' appDescription='This Cimitra App performs a backup of the Cimitra Server MongoDB database' appNotes='Created by the Cimitra Server Installation Script'"
+
+fi
+
+}
+
+function CREATE_DISK_USAGE_APP()
+{
+
+CONFIRM_CIMITRA_SERVER_CONNECTIVITY
+
+ESTABLISH_CIMITRA_API_SESSION
+
+getFolder "name=CIMITRA SYSTEM APPS" 1> /dev/null 2> /dev/null
+
+declare -i CIMITRA_SYSTEM_APPS_FOLDER_EXISTS=`echo $?`
+
+if [ $CIMITRA_SYSTEM_APPS_FOLDER_EXISTS -eq 0 ]
+then
+
+CIMITRA_SYSTEM_APPS_FOLDER_ID=""
+
+CIMITRA_SYSTEM_APPS_FOLDER_ID=`getFolder "name=CIMITRA SYSTEM APPS" | grep :ID: | head -1 | awk -F ":ID:" '{printf $2}'`
+
+	if [ $OS_IS_MAC -gt 0 ]
+	then
+	CREATE_CIMITRA_APP "appName='CHECK DISK USAGE' appInterepreter='' appCommand='echo "" ; df' appSwitches='-h /' appCron='59 21 a a a' appFolderId='${CIMITRA_SYSTEM_APPS_FOLDER_ID}' appDescription='Check Disk Space for Root Partition' appNotes='Created by the Cimitra Server Installation Script'"
+	else
+	CREATE_CIMITRA_APP "appName='CHECK DISK USAGE' appInterepreter='' appCommand='echo "" ; df' appSwitches='-hmT /' appCron='59 21 a a a' appFolderId='${CIMITRA_SYSTEM_APPS_FOLDER_ID}' appDescription='Check Disk Space for Root Partition' appNotes='Created by the Cimitra Server Installation Script'"
+	fi
+fi
+
+}
+
+function CREATE_NEW_SERVER_APPS()
+{
+
+echo "Installing Cimitra System Applications"
+CREATE_CIMITRA_SYSTEM_FOLDER
+CREATE_DISK_USAGE_APP
+return 0
+fi
+
+}
+
+function CREATE_CUSTOM_LINK()
+{
+
+CONFIRM_CIMITRA_SERVER_CONNECTIVITY
+
+ESTABLISH_CIMITRA_API_SESSION
+
+
+LINK_NAME=`echo "${COMMAND_LINE_IN}" | awk -F "linkName=" '{printf $2}' | awk -F "^" '{printf $1}'`
+
+LINK_LOCATION=`echo "${COMMAND_LINE_IN}" | awk -F "linkLocation=" '{printf $2}' | awk -F "^" '{printf $1}'`
+
+LINK_FOLDER_ID=`echo "${COMMAND_LINE_IN}" | awk -F "linkFolderId=" '{printf $2}' | awk -F "^" '{printf $1}'`
+
+LINK_DESCRIPTION=`echo "${COMMAND_LINE_IN}" | awk -F "linkDescription=" '{printf $2}' | awk -F "^" '{printf $1}'`
+
+declare -i LINK_NAME_EXISTS=`echo "${COMMAND_LINE_IN}" | grep -c "linkName="`
+
+declare -i LINK_FOLDER_ID_EXISTS=`echo "${COMMAND_LINE_IN}" | grep -c "linkFolderId="`
+
+if [ $LINK_NAME_EXISTS -eq 0 ]
+then
+return 1
+fi
+
+if [ $LINK_FOLDER_ID_EXISTS -eq 0 ]
+then
+LINK_FOLDER_ID="${CIMITRA_ROOT_FOLDER_ID}"
+fi
+
+CHECK_FOR_EXISTING_LINK "${LINK_FOLDER_ID}" "${LINK_NAME}"
+
+LINK_EXISTS=`echo $?`
+
+
+if [ $LINK_EXISTS -eq 1 ]
+then
+return 1
+fi
+
+TEMP_FILE_ONE="${TEMP_FILE_DIRECTORY}/$$.1.tmp"
+
+
+if [ $VERBOSE_MODE -eq 1 ]
+then
+echo "Link Name = $LINK_NAME"
+fi
+
+echo "NAME=\"${LINK_NAME}\"" > ${TEMP_FILE_ONE}
+echo "DESCRIPTION=\"${LINK_DESCRIPTION}\"" >> ${TEMP_FILE_ONE}
+echo "LINK_LOCATION=\"${LINK_LOCATION}\"" >> ${TEMP_FILE_ONE}
+echo "PARENT_FOLDER_ID=\"${LINK_FOLDER_ID}\"" >> ${TEMP_FILE_ONE}
+
+
+CIMITRA_LINK_CREATE ${TEMP_FILE_ONE}
+}
+
+
+
+function CALL_FUNCTION()
+{
+FUNCTION_TO_CALL=$1
+${FUNCTION_TO_CALL}
+exit 0
+}
+
+# The Main Function
+function main()
+{
+
+if [ $SHOW_HELP_SCREEN -eq 1 ]
+then
+SHOW_HELP
+exit 0
+fi
+
+if [ $FUNCTION_IN_SET -eq 1 ]
+then
+CALL_FUNCTION "${FUNCTION_IN}"
+return 0
+fi
+
+}
+
+main
+
