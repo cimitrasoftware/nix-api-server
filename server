@@ -319,9 +319,9 @@ declare -i TOTAL_UPGRADE_RUN_TIME=0
 
 let TOTAL_UPGRADE_RUN_TIME=${UPGRADE_STOP_TIME}-${UPGRADE_START_TIME}
 
-SHOW_TIME "${TOTAL_SCRIPT_RUN_TIME}" "Server Upgrade"
+SHOW_TIME "${TOTAL_UPGRADE_RUN_TIME}" "Server Upgrade"
 
-CALL_INFO "[ Cimitra Server Upgrade - Finish ]"
+CALL_INFO "[ Cimitra Server Upgrade - Finished ]"
 }
 
 function REMOVE_CIMITRA_DOCKER_COMPONENTS()
