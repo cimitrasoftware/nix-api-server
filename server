@@ -170,7 +170,7 @@ declare -i COUNTER=1
 	do
 		MONGO_LINE=`cat ${TEMP_FILE_ONE} | head -${COUNTER} | tail -1`
 		MONGO_IMAGE=`echo "${MONGO_LINE}" | awk '{printf $3}'`		
-		echo "Removing Cimitra MongoDB Docker Image = $MONGO_IMAGE"
+		echo "Removing Cimitra MongoDB Docker Image: $MONGO_IMAGE"
 		echo "----------------------------------------------------"
 		CALL_COMMAND "docker rmi -f ${MONGO_IMAGE}"
 		docker rmi -f ${MONGO_IMAGE}
@@ -190,7 +190,7 @@ declare -i COUNTER=1
 	do
 		SERVER_LINE=`cat ${TEMP_FILE_ONE} | head -${COUNTER} | tail -1`
 		SERVER_IMAGE=`echo "${SERVER_LINE}" | awk '{printf $3}'`		
-		echo "Removing Cimitra Server Docker Image = $SERVER_IMAGE"
+		echo "Removing Cimitra Server Docker Image: $SERVER_IMAGE"
 		echo "---------------------------------------------------"
 		CALL_COMMAND "docker rmi -f ${SERVER_IMAGE}"
 		docker rmi -f ${SERVER_IMAGE}
@@ -210,7 +210,7 @@ declare -i COUNTER=1
 	do
 		WEB_LINE=`cat ${TEMP_FILE_ONE} | head -${COUNTER} | tail -1`
 		WEB_IMAGE=`echo "${WEB_LINE}" | awk '{printf $3}'`		
-		echo "Removing Cimitra Web Client Docker Image = $SERVER_IMAGE"
+		echo "Removing Cimitra Web Client Docker Image: $WEB_IMAGE"
 		echo "--------------------------------------------------------"
 		CALL_COMMAND "docker rmi -f ${WEB_IMAGE}"
 		docker rmi -f ${WEB_IMAGE}
