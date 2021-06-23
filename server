@@ -172,8 +172,8 @@ declare -i COUNTER=1
 		MONGO_IMAGE=`echo "${MONGO_LINE}" | awk '{printf $3}'`		
 		echo "Removing Cimitra MongoDB Docker Image = $MONGO_IMAGE"
 		echo "----------------------------------------------------"
-		CALL_COMMAND "docker rmi ${MONGO_IMAGE}"
-		docker rmi ${MONGO_IMAGE}
+		CALL_COMMAND "docker rmi -f ${MONGO_IMAGE}"
+		docker rmi -f ${MONGO_IMAGE}
 		echo "----------------------------------------------------"
 	let COUNTER=COUNTER+1
 	done
@@ -192,8 +192,8 @@ declare -i COUNTER=1
 		SERVER_IMAGE=`echo "${SERVER_LINE}" | awk '{printf $3}'`		
 		echo "Removing Cimitra Server Docker Image = $SERVER_IMAGE"
 		echo "---------------------------------------------------"
-		CALL_COMMAND "docker rmi ${SERVER_IMAGE}"
-		docker rmi ${SERVER_IMAGE}
+		CALL_COMMAND "docker rmi -f ${SERVER_IMAGE}"
+		docker rmi -f ${SERVER_IMAGE}
 		echo "---------------------------------------------------"
 	let COUNTER=COUNTER+1
 	done
@@ -212,8 +212,8 @@ declare -i COUNTER=1
 		WEB_IMAGE=`echo "${WEB_LINE}" | awk '{printf $3}'`		
 		echo "Removing Cimitra Web Client Docker Image = $SERVER_IMAGE"
 		echo "--------------------------------------------------------"
-		CALL_COMMAND "docker rmi ${WEB_IMAGE}"
-		docker rmi ${WEB_IMAGE}
+		CALL_COMMAND "docker rmi -f ${WEB_IMAGE}"
+		docker rmi -f ${WEB_IMAGE}
 		echo "--------------------------------------------------------"
 	let COUNTER=COUNTER+1
 	done
