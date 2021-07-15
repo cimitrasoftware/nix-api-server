@@ -384,11 +384,11 @@ then
 	return
 fi
 
-declare -i MONGODB_VERSION_SET=`grep -c "image: mongo:4.4" ${DOCKER_COMPOSE_FILE}`
+declare -i MONGODB_VERSION_SET=`grep -c "image: mongo:4" ${DOCKER_COMPOSE_FILE}`
 
 if [ $MONGODB_VERSION_SET -gt 0 ]
 then
-	# Version 4.4 of MongoDB already specified in Cimitra's docker-compose.yml file
+	# Version 4 of MongoDB already specified in Cimitra's docker-compose.yml file
 	return
 fi
 
@@ -400,7 +400,7 @@ TOUCH_TEST=`echo $?`
 if [ $TOUCH_TEST -ne 0 ]
 then
 	echo "NOTE: The File ${DOCKER_COMPOSE_FILE} ..."
-	echo "Needs to updated to reflect the MongoDB Version of 4.4"
+	echo "Needs to updated to reflect the MongoDB Version of 4"
 	echo ""
 	echo "However the user you are logged in as doesn't seem to have rights to..."
 	echo "The File ${DOCKER_COMPOSE_FILE}"
@@ -408,7 +408,7 @@ then
 	echo "Please modify the file: ${DOCKER_COMPOSE_FILE} ..."
 	echo "Change the line that reads:  image: mongo"
 	echo "" 
-	echo "To this:                     image: mongo:4.4"
+	echo "To this:                     image: mongo:4"
 	return
 fi
 
@@ -416,14 +416,14 @@ declare -i SED_EDIT=1
 
 DATE_STAMP=`date +%m_%d_%Y_%H_%M_%s`
 
-sed -i.${DATE_STAMP}.bak "s/image: mongo/image: mongo:4.4/" ${DOCKER_COMPOSE_FILE} 
+sed -i.${DATE_STAMP}.bak "s/image: mongo/image: mongo:4/" ${DOCKER_COMPOSE_FILE} 
  
 SED_EDIT=`echo $?`
 
 if [ $SED_EDIT -ne 0 ]
 then
 	echo "NOTE: The File ${DOCKER_COMPOSE_FILE} ..."
-	echo "Needs to updated to reflect the MongoDB Version of 4.4"
+	echo "Needs to updated to reflect the MongoDB Version of 4"
 	echo ""
 	echo "However the user you are logged in as doesn't seem to have rights to..."
 	echo "The File ${DOCKER_COMPOSE_FILE}"
@@ -431,7 +431,7 @@ then
 	echo "Please modify the file: ${DOCKER_COMPOSE_FILE} ..."
 	echo "Change the line that reads:  image: mongo"
 	echo "" 
-	echo "To this:                     image: mongo:4.4"
+	echo "To this:                     image: mongo:4"
 	return
 fi
 
